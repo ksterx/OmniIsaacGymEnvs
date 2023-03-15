@@ -1,22 +1,27 @@
 import math
 
 import numpy as np
+import omni
 import torch
 from omni.isaac.cloner import Cloner
 from omni.isaac.core.articulations import ArticulationView
 from omni.isaac.core.objects import DynamicCuboid
-from omni.isaac.core.prims import ClothPrim, ParticleSystem, RigidPrim, RigidPrimView
+from omni.isaac.core.prims import (ClothPrim, ParticleSystem, RigidPrim,
+                                   RigidPrimView)
 from omni.isaac.core.utils.prims import get_prim_at_path
 from omni.isaac.core.utils.stage import get_current_stage
 from omni.isaac.core.utils.torch.rotations import *
 from omni.isaac.core.utils.torch.transformations import *
+from omni.physx.scripts import deformableUtils, physicsUtils, utils
+from pxr import Gf, PhysxSchema, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
+
 from omniisaacgymenvs.robots.articulations.cabinet import Cabinet
 from omniisaacgymenvs.robots.articulations.cartpole import Cartpole
 from omniisaacgymenvs.robots.articulations.franka import Franka
-from omniisaacgymenvs.robots.articulations.views.cabinet_view import CabinetView
+from omniisaacgymenvs.robots.articulations.views.cabinet_view import \
+    CabinetView
 from omniisaacgymenvs.robots.articulations.views.franka_view import FrankaView
 from omniisaacgymenvs.tasks.base.rl_task import RLTask
-from pxr import Usd, UsdGeom
 
 
 class SurgeryTask(RLTask):
@@ -61,6 +66,10 @@ class SurgeryTask(RLTask):
 
         super().set_up_scene(scene)
 
+        stage = scene.stage()
+        pos = Gf.Vec3f(2.0, 2.0, 2.0)
+        self.add_deformable_body(stage=stage, usd_path="/World/envs/env0/deformable_body", position=pos, rotation=None, size=[0.1, 0.1, 0.1], phys_mat_path="/World/envs/env0/phys_mat", grfx_mat_path="/World/envs/env0/grfx_mat",)
+
         self._frankas = FrankaView(prim_paths_expr="/World/envs/.*/franka", name="franka_view")
         self._cabinets = CabinetView(prim_paths_expr="/World/envs/.*/cabinet", name="cabinet_view")
 
@@ -81,6 +90,30 @@ class SurgeryTask(RLTask):
 
         self.init_data()
         return
+
+    def add_deformable_body(self, stage, usd_path, position, rotation, size, phys_mat_path, grfx_mat_path):
+        prim_path = "/World/envs/env0/deformable_body"
+        stage.DefinePrim(prim_path).GetReferences().AddReference(usd_path)
+        skin_mesh = UsdGeom.Mesh.Get(stage, prim_path)
+        skin_mesh.AddTranslateOp().Set(position)
+        skin_mesh.AddOrientOp().Set(Gf.Quatf(1.0))
+        skin_mesh.AddScaleOp().Set(Gf.Vec3f(size, size, size))
+        deformableUtils.add_physx_deformable_body(
+            stage,
+            prim_path,
+            simulation_hexahedral_resolution=3,
+            collision_simplification=True,
+            self_collision=False,
+            solver_position_iteration_count=self.pos_iterations,
+        )
+        physicsUtils.add_physics_material_to_prim(stage, skin_mesh.GetPrim(), phys_mat_path)
+        physxCollisionAPI = PhysxSchema.PhysxCollisionAPI.Apply(skin_mesh.GetPrim())
+        physxCollisionAPI.GetContactOffsetAttr().Set(0.02)
+        physxCollisionAPI.CreateRestOffsetAttr().Set(0.001)
+        omni.kit.commands.execute(
+            "BindMaterialCommand", prim_path=prim_path, material_path=grfx_mat_path, strength=None
+        )
+
 
     def get_franka(self):
         franka = Franka(prim_path=self.default_zero_env_path + "/franka", name="franka")

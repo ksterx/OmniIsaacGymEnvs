@@ -27,15 +27,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-from omniisaacgymenvs.tasks.base.rl_task import RLTask
-from omniisaacgymenvs.robots.articulations.cartpole import Cartpole
-
-from omni.isaac.core.articulations import ArticulationView
-from omni.isaac.core.utils.prims import get_prim_at_path
+import math
 
 import numpy as np
 import torch
-import math
+from omni.isaac.core.articulations import ArticulationView
+from omni.isaac.core.utils.prims import get_prim_at_path
+
+from omniisaacgymenvs.robots.articulations.cartpole import Cartpole
+from omniisaacgymenvs.tasks.base.rl_task import RLTask
 
 
 class CartpoleTask(RLTask):
@@ -70,6 +70,8 @@ class CartpoleTask(RLTask):
         super().set_up_scene(scene)
         self._cartpoles = ArticulationView(prim_paths_expr="/World/envs/.*/Cartpole", name="cartpole_view", reset_xform_properties=False)
         scene.add(self._cartpoles)
+        a = scene.stage.GetDefaultPrim().GetPath()
+        print("====================================\n\n", a)
         return
 
     def get_cartpole(self):
