@@ -66,7 +66,7 @@ class SurgeryTask(RLTask):
 
         super().set_up_scene(scene)
 
-        stage = scene.stage()
+        stage = scene.stage
         pos = Gf.Vec3f(2.0, 2.0, 2.0)
         self.add_deformable_body(stage=stage, usd_path="/World/envs/env0/deformable_body", position=pos, rotation=None, size=[0.1, 0.1, 0.1], phys_mat_path="/World/envs/env0/phys_mat", grfx_mat_path="/World/envs/env0/grfx_mat",)
 
